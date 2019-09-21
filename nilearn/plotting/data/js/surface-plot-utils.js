@@ -94,6 +94,12 @@ function getCamera(plotDivId, viewSelectId) {
         "back": {eye: {x: 0, y: -1.7, z: 0},
                     up: {x: 0, y: 0, z: 1},
                     center: {x: 0, y: 0, z: 0}},
+        "ret_LH": {eye: {x: 1.7, y: -2.0, z: -0.5},
+                    up: {x: 0, y: 0, z: 1},
+                    center: {x: 0, y: 0, z: 0}},
+        "ret_RH": {eye: {x: -1.5, y: -2.0, z: -0.5},
+                    up: {x: 0, y: 0, z: 1},
+                    center: {x: 0, y: 0, z: 0}}
     };
 
     return cameras[view];

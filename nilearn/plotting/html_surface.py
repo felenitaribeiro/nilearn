@@ -5,6 +5,8 @@ import numpy as np
 import matplotlib as mpl
 from matplotlib import cm as mpl_cm
 
+from matplotlib.colors import ListedColormap
+
 from .._utils.niimg_conversions import check_niimg_3d
 from .. import datasets, surface
 from . import cm
@@ -29,7 +31,17 @@ def _get_vertexcolor(surf_map, cmap, norm,
         bg_map = surface.load_surf_data(bg_map)
         bg_vmin, bg_vmax = np.min(bg_map), np.max(bg_map)
     bg_norm = mpl.colors.Normalize(vmin=bg_vmin, vmax=bg_vmax)
-    bg_color = mpl_cm.get_cmap('Greys')(bg_norm(bg_map))
+
+    #For background curvature maps being represented by two colors only
+    top = mpl_cm.get_cmap('tab20c')  ##
+    newcolors = top(np.linspace(0, 1, 20))  ##
+    newcolors = newcolors[16:18]  ##
+    newcmp = ListedColormap(newcolors, name='VisualAreas')  ##
+    bg_color = mpl_cm.get_cmap(newcmp)(bg_norm(bg_map)) ##
+
+
+    # bg_color = mpl_cm.get_cmap('Greys')(bg_norm(bg_map))
+
     vertexcolor[np.abs(surf_map) < absolute_threshold] = bg_color[
         np.abs(surf_map) < absolute_threshold]
     return to_color_strings(vertexcolor)
