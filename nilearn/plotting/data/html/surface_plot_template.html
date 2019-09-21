@@ -22,12 +22,6 @@
             info['lighting'] = getLighting();
             let layout = getLayout("surface-plot", "select-view",
                                    surfaceMapInfo["black_bg"]);
-            layout['title'] = {
-                text: surfaceMapInfo['title'],
-                font: {size: surfaceMapInfo["title_fontsize"],
-                       color: textColor(surfaceMapInfo["black_bg"])},
-                yref: 'paper',
-                y: .95};
             let config = getConfig();
 
             Plotly.react(divId, data, layout, config);
@@ -38,8 +32,7 @@
                             surfaceMapInfo["cmax"],
                             divId, layout, config,
                             surfaceMapInfo["cbar_fontsize"],
-                            surfaceMapInfo["cbar_height"],
-                            color=textColor(surfaceMapInfo["black_bg"]));
+                            surfaceMapInfo["cbar_height"]);
             }
         }
 
@@ -98,7 +91,6 @@
         <option value="back">view: Back</option>
         <option value="top">view: Top</option>
         <option value="bottom">view: Bottom</option>
-        #Retinotopic maps view
         <option value="ret_LH">view: Custom_LH</option>
         <option value="ret_RH">view: Custom_RH</option>
         <option value="custom">view: -</option>

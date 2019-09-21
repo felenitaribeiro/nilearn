@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib as mpl
 from matplotlib import cm as mpl_cm
 
-from matplotlib.colors import ListedColormap
+from matplotlib.colors import ListedColormap ###
 
 from .._utils.niimg_conversions import check_niimg_3d
 from .. import datasets, surface
@@ -32,19 +32,18 @@ def _get_vertexcolor(surf_map, cmap, norm,
         bg_vmin, bg_vmax = np.min(bg_map), np.max(bg_map)
     bg_norm = mpl.colors.Normalize(vmin=bg_vmin, vmax=bg_vmax)
 
-    #For background curvature maps being represented by two colors only
-    top = mpl_cm.get_cmap('tab20c')  ##
+    top = mpl_cm.get_cmap('tab20c')     ##
     newcolors = top(np.linspace(0, 1, 20))  ##
-    newcolors = newcolors[16:18]  ##
-    newcmp = ListedColormap(newcolors, name='VisualAreas')  ##
-    bg_color = mpl_cm.get_cmap(newcmp)(bg_norm(bg_map)) ##
-
+    newcolors = newcolors[16:18] ##
+    newcmp = ListedColormap(newcolors, name='VisualAreas') ##
 
     # bg_color = mpl_cm.get_cmap('Greys')(bg_norm(bg_map))
-
+    bg_color = mpl_cm.get_cmap(newcmp)(bg_norm(bg_map))
     vertexcolor[np.abs(surf_map) < absolute_threshold] = bg_color[
         np.abs(surf_map) < absolute_threshold]
     return to_color_strings(vertexcolor)
+
+
 
 
 def one_mesh_info(surf_map, surf_mesh, threshold=None, cmap=cm.cold_hot,
@@ -140,8 +139,7 @@ def _fill_html_template(info, embed_js=True):
 def view_img_on_surf(stat_map_img, surf_mesh='fsaverage5',
                      threshold=None, cmap=cm.cold_hot,
                      black_bg=False, vmax=None, vmin=None, symmetric_cmap=True,
-                     colorbar=True, colorbar_height=.5, colorbar_fontsize=25,
-                     title=None, title_fontsize=25):
+                     colorbar=True, colorbar_height=.5, colorbar_fontsize=25):
     """
     Insert a surface plot of a statistical map into an HTML page.
 
@@ -197,12 +195,6 @@ def view_img_on_surf(stat_map_img, surf_mesh='fsaverage5',
     colorbar_fontsize : int, optional (default=25)
         fontsize of the colorbar tick labels
 
-    title : str, optional (default=None)
-        title for the plot
-
-    title_fontsize : int, optional (default=25)
-        fontsize of the title
-
     Returns
     -------
     SurfaceView : plot of the stat map.
@@ -226,15 +218,13 @@ def view_img_on_surf(stat_map_img, surf_mesh='fsaverage5',
     info['colorbar'] = colorbar
     info['cbar_height'] = colorbar_height
     info['cbar_fontsize'] = colorbar_fontsize
-    info['title'] = title
-    info['title_fontsize'] = title_fontsize
     return _fill_html_template(info, embed_js=True)
 
 
 def view_surf(surf_mesh, surf_map=None, bg_map=None, threshold=None,
               cmap=cm.cold_hot, black_bg=False, vmax=None, vmin=None,
               symmetric_cmap=True, colorbar=True, colorbar_height=.5,
-              colorbar_fontsize=25, title=None, title_fontsize=25):
+              colorbar_fontsize=25):
     """
     Insert a surface plot of a surface map into an HTML page.
 
@@ -299,12 +289,6 @@ def view_surf(surf_mesh, surf_map=None, bg_map=None, threshold=None,
     colorbar_fontsize : int, optional (default=25)
         fontsize of the colorbar tick labels
 
-    title : str, optional (default=None)
-        title for the plot
-
-    title_fontsize : int, optional (default=25)
-        fontsize of the title
-
     Returns
     -------
     SurfaceView : plot of the stat map.
@@ -323,11 +307,10 @@ def view_surf(surf_mesh, surf_map=None, bg_map=None, threshold=None,
     surf_mesh = surface.load_surf_mesh(surf_mesh)
     if surf_map is None:
         surf_map = np.ones(len(surf_mesh[0]))
-    else:
-        surf_mesh, surf_map = surface.check_mesh_and_data(
-            surf_mesh, surf_map)
+    if surf_map is not None:
+        surface.check_mesh_and_data(surf_mesh, surf_map)
     if bg_map is not None:
-        _, bg_map = surface.check_mesh_and_data(surf_mesh, bg_map)
+        surface.check_mesh_and_data(surf_mesh, bg_map)
     info = one_mesh_info(
         surf_map=surf_map, surf_mesh=surf_mesh, threshold=threshold,
         cmap=cmap, black_bg=black_bg, bg_map=bg_map,
@@ -335,6 +318,4 @@ def view_surf(surf_mesh, surf_map=None, bg_map=None, threshold=None,
     info['colorbar'] = colorbar
     info['cbar_height'] = colorbar_height
     info['cbar_fontsize'] = colorbar_fontsize
-    info['title'] = title
-    info['title_fontsize'] = title_fontsize
     return _fill_html_template(info, embed_js=True)

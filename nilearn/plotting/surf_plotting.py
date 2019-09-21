@@ -128,10 +128,24 @@ def plot_surf(surf_mesh, surf_map=None, bg_map=None,
 
     # set view
     if hemi == 'right':
+        '''
         if view == 'lateral':
             elev, azim = 0, 0
         elif view == 'medial':
             elev, azim = 0, 180
+        elif view == 'dorsal':
+            elev, azim = 90, 0
+        elif view == 'ventral':
+            elev, azim = 270, 0
+        elif view == 'anterior':
+            elev, azim = 0, 90
+        elif view == 'posterior':
+            elev, azim = 0, 270'''
+
+        if view == 'lateral':
+            elev, azim = 0, 0
+        elif view == 'medial':
+            elev, azim = 0, 225
         elif view == 'dorsal':
             elev, azim = 90, 0
         elif view == 'ventral':
@@ -144,6 +158,20 @@ def plot_surf(surf_mesh, surf_map=None, bg_map=None,
             raise ValueError('view must be one of lateral, medial, '
                              'dorsal, ventral, anterior, or posterior')
     elif hemi == 'left':
+
+        '''        if view == 'medial':
+            elev, azim = 0, 0
+        elif view == 'lateral':
+            elev, azim = 0, 180
+        elif view == 'dorsal':
+            elev, azim = 90, 0
+        elif view == 'ventral':
+            elev, azim = 270, 0
+        elif view == 'anterior':
+            elev, azim = 0, 90
+        elif view == 'posterior':
+            elev, azim = 0, 305'''
+
         if view == 'medial':
             elev, azim = 0, 0
         elif view == 'lateral':
@@ -188,6 +216,7 @@ def plot_surf(surf_mesh, surf_map=None, bg_map=None,
             figure = axes.get_figure()
         axes.set_xlim(*limits)
         axes.set_ylim(*limits)
+    axes.set_aspect(.74)
     axes.view_init(elev=elev, azim=azim)
     axes.set_axis_off()
 
