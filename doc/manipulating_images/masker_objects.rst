@@ -8,10 +8,6 @@ This chapter introduces the maskers: objects that go from
 neuroimaging volumes, on the disk or in memory, to data matrices, eg of
 time series.
 
-.. contents:: **Chapters contents**
-    :local:
-    :depth: 1
-
 
 The concept of "masker" objects
 ===============================
@@ -23,9 +19,15 @@ where the samples could be different time points, and the features derived
 from different voxels (e.g., restrict analysis to the ventral visual stream),
 regions of interest (e.g., extract local signals from spheres/cubes), or
 pre-specified networks (e.g., look at data from all voxels of a set of
-network nodes). Think of masker objects as swiss-army knifes for shaping
+network nodes). Think of masker objects as swiss-army knives for shaping
 the raw neuroimaging data in 3D space into the units of observation
 relevant for the research questions at hand.
+
+.. tip::
+    Masker objects can transform both 3D and 4D image objects.
+    Transforming a 4D image produces a 2D (samples x features) matrix.
+    Currently, transforming a 3D image also produces a 2D (1 x features) matrix,
+    but starting in version 0.12, it will produce a 1D (features) array.
 
 
 .. |niimgs| image:: ../images/niimgs.jpg
@@ -40,10 +42,8 @@ relevant for the research questions at hand.
 
 .. centered:: |niimgs|  |arrow|  |arrays|
 
-
-
-"masker" objects (found in modules :mod:`nilearn.input_data`)
-simplify these "data folding" steps that often preceed the
+"masker" objects (found in module :mod:`nilearn.maskers`)
+simplify these "data folding" steps that often precede the
 statistical analysis.
 
 Note that the masker objects may not cover all the image transformations
@@ -66,7 +66,7 @@ have to call :ref:`specific functions <preprocessing_functions>`
     data themselves (e.g., extracting time series from images).
 
 
-.. currentmodule:: nilearn.input_data
+.. currentmodule:: nilearn.maskers
 
 .. _nifti_masker:
 
@@ -100,7 +100,7 @@ possible, there is no need to save your data to a file to pass it to a
 slice and create a :ref:`Niimg <niimg>` in memory:
 
 
-.. literalinclude:: ../../examples/04_manipulating_images/plot_mask_computation.py
+.. literalinclude:: ../../examples/06_manipulating_images/plot_mask_computation.py
     :start-after: Load movie watching based brain development fmri dataset
     :end-before: # To display the background
 
@@ -117,9 +117,9 @@ engineering using masker objects.
 .. note::
 
     The full example described in this section can be found here:
-    :doc:`plot_mask_computation.py <../auto_examples/04_manipulating_images/plot_mask_computation>`.
+    :doc:`plot_mask_computation.py <../auto_examples/06_manipulating_images/plot_mask_computation>`.
     It is also related to this example:
-    :doc:`plot_nifti_simple.py <../auto_examples/04_manipulating_images/plot_nifti_simple>`.
+    :doc:`plot_nifti_simple.py <../auto_examples/06_manipulating_images/plot_nifti_simple>`.
 
 
 Visualizing the computed mask
@@ -136,13 +136,26 @@ mask computation parameters.
 The mask can be retrieved and visualized from the `mask_img_` attribute
 of the masker:
 
-.. literalinclude:: ../../examples/04_manipulating_images/plot_mask_computation.py
+.. literalinclude:: ../../examples/06_manipulating_images/plot_mask_computation.py
+    :start-after: # A NiftiMasker with the default strategy
+    :end-before: # Plot the generated mask using the .generate_report method
+
+.. figure:: ../auto_examples/06_manipulating_images/images/sphx_glr_plot_mask_computation_002.png
+    :target: ../auto_examples/06_manipulating_images/plot_mask_computation.html
+    :align: center
+    :scale: 40
+
+Alternatively, the mask can be visualized using the `generate_report`
+method of the masker. The generated report can be viewed in a Jupyter notebook,
+opened in a new browser tab using `report.open_in_browser()`,
+or saved as a portable HTML file `report.save_as_html(output_filepath)`.
+
+.. literalinclude:: ../../examples/06_manipulating_images/plot_mask_computation.py
     :start-after: # We need to specify an 'epi' mask_strategy, as this is raw EPI data
     :end-before: # Generate mask with strong opening
 
-
-.. figure:: ../auto_examples/04_manipulating_images/images/sphx_glr_plot_mask_computation_004.png
-    :target: ../auto_examples/04_manipulating_images/plot_mask_computation.html
+.. figure:: /images/niftimasker_report.png
+    :target: ../auto_examples/06_manipulating_images/plot_mask_computation.html
     :scale: 50%
 
 Different masking strategies
@@ -152,19 +165,21 @@ The `mask_strategy` argument controls how the mask is computed:
 
 * `background`: detects a continuous background
 * `epi`: suitable for EPI images
-* `template`: uses an MNI grey-matter template
+* `whole-brain-template`: uses an MNI whole-brain template
+* `gm-template`: uses an MNI grey-matter template
+* `wm-template`: uses an MNI white-matter template
 
 Extra mask parameters: opening, cutoff...
 ..........................................
 
 The underlying function is :func:`nilearn.masking.compute_epi_mask`
 called using the `mask_args` argument of the :class:`NiftiMasker`.
-Controling these arguments set the fine aspects of the mask. See the
+Controlling these arguments set the fine aspects of the mask. See the
 functions documentation, or :doc:`the NiftiMasker example
-<../auto_examples/04_manipulating_images/plot_mask_computation>`.
+<../auto_examples/06_manipulating_images/plot_mask_computation>`.
 
-.. figure:: ../auto_examples/04_manipulating_images/images/sphx_glr_plot_mask_computation_005.png
-    :target: ../auto_examples/04_manipulating_images/plot_mask_computation.html
+.. figure:: /images/niftimasker_report_params.png
+    :target: ../auto_examples/06_manipulating_images/plot_mask_computation.html
     :scale: 50%
 
 .. _masker_preprocessing_steps:
@@ -175,19 +190,17 @@ Common data preparation steps: smoothing, filtering, resampling
 :class:`NiftiMasker` comes with many parameters that enable data
 preparation::
 
-   >>> from nilearn import input_data
-   >>> masker = input_data.NiftiMasker()
+   >>> import sklearn; sklearn.set_config(print_changed_only=False)
+   >>> from nilearn import maskers
+   >>> masker = maskers.NiftiMasker()
    >>> masker # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
-   NiftiMasker(detrend=False, dtype=None, high_pass=None, low_pass=None,
-         mask_args=None, mask_img=None, mask_strategy='background',
-         memory=Memory(...), memory_level=1, sample_mask=None,
-         sessions=None, smoothing_fwhm=None, standardize=False, t_r=None,
+   NiftiMasker(detrend=False, dtype=None, high_pass=None,
+         high_variance_confounds=False, low_pass=None, mask_args=None,
+         mask_img=None, mask_strategy='background',
+         memory=Memory(location=None), memory_level=1, reports=True,
+         runs=None, smoothing_fwhm=None, standardize=False,
+         standardize_confounds=True, t_r=None,
          target_affine=None, target_shape=None, verbose=0)
-
-.. note::
-
-    From scikit-learn 0.20, the argument `cachedir` is deprecated in
-    favour of `location`. Hence `cachedir` might not be seen as here.
 
 The meaning of each parameter is described in the documentation of
 :class:`NiftiMasker` (click on the name :class:`NiftiMasker`), here we
@@ -213,13 +226,14 @@ Smoothing
 
 :class:`NiftiMasker` can apply Gaussian spatial smoothing to the
 neuroimaging data, useful to fight noise or for inter-individual
-differences in neuroanatomy. It is achieved by specifying the full-width
-half maximum (FWHM; in millimeter scale) with the `smoothing_fwhm`
-parameter. Anisotropic filtering is also possible by passing 3 scalars
-``(x, y, z)``, the FWHM along the x, y, and z direction.
+differences in neuroanatomy. It is achieved by specifying the
+:term:`full-width half maximum<FWHM>` (:term:`FWHM`; in millimeter
+scale) with the `smoothing_fwhm` parameter. Anisotropic filtering
+is also possible by passing 3 scalars ``(x, y, z)``, the
+:term:`FWHM` along the x, y, and z direction.
 
-The underlying function handles properly non-cubic voxels by scaling the
-given widths appropriately.
+The underlying function handles properly non-cubic :term:`voxels<voxel>`
+by scaling the given widths appropriately.
 
 .. seealso::
 
@@ -234,7 +248,7 @@ Temporal Filtering and confound removal
 properties, before conversion to voxel signals.
 
 - **Standardization**. Parameter ``standardize``: Signals can be
-  standardized (scaled to unit variance). 
+  standardized (scaled to unit variance).
 
 - **Frequency filtering**. Low-pass and high-pass filters can be used to
   remove artifacts. Parameters: ``high_pass`` and ``low_pass``, specified
@@ -242,7 +256,7 @@ properties, before conversion to voxel signals.
   the ``t_r`` parameter: ``loss_pass=.5, t_r=2.1``).
 
 - **Confound removal**. Two ways of removing confounds are provided: simple
-  detrending or using prespecified confounds, such as behavioral or movement 
+  detrending or using prespecified confounds, such as behavioral or movement
   information.
 
   * Linear trends can be removed by activating the `detrend` parameter.
@@ -251,20 +265,31 @@ properties, before conversion to voxel signals.
     signal of interest (e.g., the neural correlates of cognitive tasks).
     It is not activated by default in :class:`NiftiMasker` but is recommended
     in almost all scenarios.
-    
+
   * More complex confounds, measured during the acquision, can be removed
     by passing them to :meth:`NiftiMasker.transform`. If the dataset
-    provides a confounds file, just pass its path to the masker.
+    provides a confounds file, just pass its path to the masker. For
+    :term:`fMRIPrep` outputs, one can use
+    :func:`~nilearn.interfaces.fmriprep.load_confounds` or
+    :func:`~nilearn.interfaces.fmriprep.load_confounds_strategy` to select
+    confound variables with some basic sanity check based on
+    :term:`fMRIPrep` documentation.
 
 .. topic:: **Exercise**
    :class: green
 
    You can, more as a training than as an exercise, try to play with
    the parameters in
-   :ref:`sphx_glr_auto_examples_plot_decoding_tutorial.py`.
+   :ref:`sphx_glr_auto_examples_00_tutorials_plot_decoding_tutorial.py`.
    Try to enable detrending and run the script:
    does it have a big impact on the result?
 
+.. note::
+
+   Please see the usage example of
+   :func:`~nilearn.interfaces.fmriprep.load_confounds` and
+   :func:`~nilearn.interfaces.fmriprep.load_confounds_strategy` in
+   :doc:`plot_signal_extraction.py <../auto_examples/03_connectivity/plot_signal_extraction>`.
 
 .. seealso::
 
@@ -305,19 +330,24 @@ images after unmasking (masked-reduced data transformed back into
 the original whole-brain space). This step is present in many
 :ref:`examples <examples-index>` provided in nilearn. Below you will find
 an excerpt of :ref:`the example performing Anova-SVM on the Haxby data
-<sphx_glr_auto_examples_02_decoding_plot_haxby_anova_svm.py>`):
+<sphx_glr_auto_examples_02_decoding_plot_haxby_anova_svm.py>`:
 
 .. literalinclude:: ../../examples/02_decoding/plot_haxby_anova_svm.py
     :start-after: # Look at the SVC's discriminating weights
-    :end-before: # Use the mean image as a background
+    :end-before: # Or we can plot the weights
 
 |
 
+.. tip::
+    Masker objects can inverse-transform both 1D and 2D arrays.
+    Inverse-transforming a 2D array produces a 4D (X x Y x Z x samples) image,
+    while inverse-transforming a 1D array produces a 3D (X x Y x Z) image.
+
 .. topic:: **Examples to better understand the NiftiMasker**
 
-   * :ref:`sphx_glr_auto_examples_04_manipulating_images_plot_nifti_simple.py`
+   * :ref:`sphx_glr_auto_examples_06_manipulating_images_plot_nifti_simple.py`
 
-   * :ref:`sphx_glr_auto_examples_04_manipulating_images_plot_mask_computation.py`
+   * :ref:`sphx_glr_auto_examples_06_manipulating_images_plot_mask_computation.py`
 
 |
 
@@ -374,7 +404,7 @@ some explanation. The voxels that correspond to the brain or a region
 of interest in an fMRI image do not fill the entire image.
 Consequently, in the labels image, there must be a label value that corresponds
 to "outside" the brain (for which no signal should be extracted).
-By default, this label is set to zero in nilearn (refered to as "background").
+By default, this label is set to zero in nilearn (referred to as "background").
 Should some non-zero value encoding be necessary, it is possible
 to change the background value with the `background_label` keyword.
 
@@ -400,6 +430,50 @@ possible option.
 .. topic:: **Examples**
 
    * :ref:`sphx_glr_auto_examples_03_connectivity_plot_probabilistic_atlas_extraction.py`
+
+Extraction of signals from regions for multiple subjects:\  :class:`MultiNiftiMasker`, :class:`MultiNiftiLabelsMasker`, :class:`MultiNiftiMapsMasker`
+=====================================================================================================================================================
+
+The purpose of :class:`MultiNiftiMasker`, :class:`MultiNiftiLabelsMasker` and
+:class:`MultiNiftiMapsMasker` is to extend the capabilities of
+:class:`NiftiMasker`, :class:`NiftiLabelsMasker` and :class:`NiftiMapsMasker`
+as to facilitate the computation of voxel signals in multi-subjects settings.
+While :class:`NiftiMasker`, :class:`NiftiLabelsMasker` and
+:class:`NiftiMapsMasker` work with 3D inputs (single brain volume) or 4D inputs
+(sequence of brain volumes in time for one subject), :class:`MultiNiftiMasker`,
+:class:`MultiNiftiLabelsMasker` and :class:`MultiNiftiMapsMasker` expect 5D
+inputs (list of sequences of brain volumes).
+
+:class:`MultiNiftiMasker` Usage
+-------------------------------
+
+:class:`MultiNiftiMasker` extracts voxel signals for each subject in the areas defined by the
+masks.
+
+.. topic:: **Examples**
+
+    * :ref:`sphx_glr_auto_examples_02_decoding_plot_miyawaki_reconstruction.py`
+    * :ref:`sphx_glr_auto_examples_02_decoding_plot_miyawaki_encoding.py`
+
+:class:`MultiNiftiLabelsMasker` Usage
+-------------------------------------
+
+:class:`MultiNiftiLabelsMasker` extracts signals from regions defined by labels
+for each subject.
+
+.. topic:: **Examples**
+
+    * :ref:`sphx_glr_auto_examples_03_connectivity_plot_atlas_comparison.py`
+
+:class:`MultiNiftiMapsMasker` Usage
+-------------------------------------
+
+:class:`MultiNiftiMapsMasker` extracts signals regions defined by maps
+for each subject.
+
+.. topic:: **Examples**
+
+    * :ref:`sphx_glr_auto_examples_03_connectivity_plot_atlas_comparison.py`
 
 Extraction of signals from seeds:\  :class:`NiftiSpheresMasker`
 ===============================================================

@@ -1,10 +1,11 @@
 import itertools
-import numpy as np
 
-from nose.tools import assert_equal, assert_raises
+import numpy as np
+import pytest
+import nibabel
 
 from nilearn._utils.testing import with_memory_profiler
-from nilearn._utils.testing import assert_memory_less_than, assert_raises_regex
+from nilearn._utils.testing import assert_memory_less_than
 from nilearn._utils.data_gen import generate_fake_fmri
 
 
@@ -22,17 +23,16 @@ def test_memory_usage():
 
     # Ensure an exception is raised with too small objects as
     # memory_profiler can return non trustable memory measure in this case.
-    assert_raises_regex(ValueError,
-                        "Memory profiler measured an untrustable memory",
-                        assert_memory_less_than, 50, 0.1,
-                        create_object, 25 * 1024 ** 2)
+    with pytest.raises(
+            ValueError,
+            match="Memory profiler measured an untrustable memory"):
+        assert_memory_less_than(50, 0.1,
+                                create_object, 25 * 1024 ** 2)
 
     # Ensure ValueError is raised if memory used is above expected memory
     # limit.
-    assert_raises_regex(ValueError,
-                        "Memory consumption measured",
-                        assert_memory_less_than, 100, 0.1,
-                        create_object, 200 * 1024 ** 2)
+    with pytest.raises(ValueError, match="Memory consumption measured"):
+        assert_memory_less_than(100, 0.1, create_object, 200 * 1024 ** 2)
 
 
 def test_generate_fake_fmri():
@@ -53,19 +53,30 @@ def test_generate_fake_fmri():
                 shape=shape, length=length, kind=kind,
                 n_blocks=n_block, block_size=bsize,
                 block_type=btype,
-                rand_gen=rand_gen)
+                random_state=rand_gen)
         else:
             fmri, mask, target = generate_fake_fmri(
                 shape=shape, length=length, kind=kind,
                 n_blocks=n_block, block_size=bsize,
                 block_type=btype,
-                rand_gen=rand_gen)
+                random_state=rand_gen)
 
-        assert_equal(fmri.shape[:-1], shape)
-        assert_equal(fmri.shape[-1], length)
+        assert fmri.shape[:-1] == shape
+        assert fmri.shape[-1] == length
 
         if n_block is not None:
-            assert_equal(target.size, length)
+            assert target.size == length
 
-    assert_raises(ValueError, generate_fake_fmri, length=10, n_blocks=10,
-                  block_size=None, rand_gen=rand_gen)
+    pytest.raises(ValueError, generate_fake_fmri, length=10, n_blocks=10,
+                  block_size=None, random_state=rand_gen)
+
+
+def test_int64_niftis(tmp_path):
+    data = np.ones((3, 3, 3), dtype=bool)
+    affine = np.eye(4)
+    for dtype in "uint8", "int32", "float32":
+        img = nibabel.Nifti1Image(data.astype(dtype), affine)
+        img.to_filename(tmp_path.joinpath("img.nii.gz"))
+    for dtype in "int64", "uint64":
+        with pytest.raises(AssertionError):
+            nibabel.Nifti1Image(data.astype(dtype), affine)

@@ -4,10 +4,6 @@
 Input and output: neuroimaging data representation
 =====================================================
 
-.. contents:: **Contents**
-    :local:
-    :depth: 1
-
 |
 
 .. currentmodule:: nilearn.image
@@ -175,14 +171,14 @@ Analyze files) is the standard way of sharing data in neuroimaging
 research. Three main components are:
 
 :data:
-    raw scans in form of a numpy array: ``data = img.get_data()``
+    raw scans in form of a numpy array: ``data = nilearn.image.get_data(img)``
 :affine:
     returns the transformation matrix that maps
     from voxel indices of the numpy array to actual real-world
     locations of the brain:
     ``affine = img.affine``
 :header:
-    low-level informations about the data (slice duration, etc.):
+    low-level information about the data (slice duration, etc.):
     ``header = img.header``
 
 If you need to load the data without using nilearn, read the nibabel_
@@ -190,6 +186,15 @@ documentation.
 
 Note: For older versions of nibabel_, affine and header can be retrieved
 with ``get_affine()`` and ``get_header()``.
+
+.. warning:: if you create images directly with nibabel_, beware of int64
+             images. the default integer type used by Numpy is (signed) 64-bit.
+             Several popular neuroimaging tools do not handle int64 Nifti
+             images, so if you build Nifti images directly from Numpy arrays it
+             is recommended to specify a smaller integer type, for example::
+
+               np.array([1, 2000, 7], dtype="int32")
+
 
 
 .. topic:: **Dataset formatting: data shape**
@@ -217,8 +222,8 @@ objects":
 
 **Niimg:** A Niimg-like object can be one of the following:
 
-  * A string with a file path to a Nifti or Analyse image
-  * An ``SpatialImage`` from nibabel, ie an object exposing ``get_data()``
+  * A string or pathlib.Path object with a file path to a Nifti or Analyse image
+  * An ``SpatialImage`` from nibabel, ie an object exposing ``get_fdata()``
     method and ``affine`` attribute, typically a ``Nifti1Image`` from nibabel_.
 
 **Niimg-4D:** Similarly, some functions require 4D Nifti-like
@@ -233,6 +238,16 @@ data, which we call Niimgs or Niimg-4D. Accepted input arguments are:
 
    If you provide a sequence of Nifti images, all of them must have the same
    affine.
+
+.. topic:: **Decreasing memory used when loading Nifti images**
+
+   When Nifti images are stored compressed (.nii.gz), loading them directly
+   consumes more memory. As a result, large 4D images may
+   raise "MemoryError", especially on smaller computers and when using Nilearn
+   routines that require intensive 4D matrix operations. One step to improve
+   the situation may be to decompress the data onto disk as an initial step.
+   If multiple images are loaded into memory sequentially, another solution may
+   be to `uncache <https://nipy.org/nibabel/images_and_memory.html#using-uncache>`_ one before loading and performing operations on another.
 
 Text files: phenotype or behavior
 ----------------------------------

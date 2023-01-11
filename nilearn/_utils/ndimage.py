@@ -5,8 +5,7 @@ N-dimensional image manipulation
 # License: simplified BSD
 
 import numpy as np
-from scipy import ndimage
-from .._utils.compat import _basestring
+from scipy.ndimage import label, maximum_filter
 ###############################################################################
 # Operating on connected components
 ###############################################################################
@@ -17,12 +16,12 @@ def largest_connected_component(volume):
 
     Parameters
     -----------
-    volume: numpy.ndarray
+    volume : numpy.ndarray
         3D boolean array indicating a volume.
 
     Returns
     --------
-    volume: numpy.ndarray
+    volume : numpy.ndarray
         3D boolean array with only one connected component.
 
     See Also
@@ -32,15 +31,14 @@ def largest_connected_component(volume):
 
     Notes
     -----
-
     **Handling big-endian in given numpy.ndarray**
     This function changes the existing byte-ordering information to new byte
     order, if the given volume has non-native data type. This operation
     is done inplace to avoid big-endian issues with scipy ndimage module.
 
     """
-    if hasattr(volume, "get_data") \
-       or isinstance(volume, _basestring):
+    if (hasattr(volume, "get_data") or hasattr(
+            volume, "get_fdata") or isinstance(volume, str)):
         raise ValueError('Please enter a valid numpy array. For images use\
                          largest_connected_component_img')
     # Get the new byteorder to handle issues like "Big-endian buffer not
@@ -50,12 +48,12 @@ def largest_connected_component(volume):
 
     # We use asarray to be able to work with masked arrays.
     volume = np.asarray(volume)
-    labels, label_nb = ndimage.label(volume)
+    labels, label_nb = label(volume)
     if not label_nb:
         raise ValueError('No non-zero values: no connected components')
     if label_nb == 1:
-        return volume.astype(np.bool)
-    label_count = np.bincount(labels.ravel().astype(np.int))
+        return volume.astype(bool)
+    label_count = np.bincount(labels.ravel().astype(int))
     # discard the 0 label
     label_count[0] = 0
     return labels == label_count.argmax()
@@ -79,25 +77,29 @@ def _peak_local_max(image, min_distance=10, threshold_abs=0, threshold_rel=0.1,
     Peaks are the local maxima in a region of `2 * min_distance + 1`
     (i.e. peaks are separated by at least `min_distance`).
 
-    NOTE: If peaks are flat (i.e. multiple adjacent pixels have identical
-    intensities), the coordinates of all such pixels are returned.
-
     Parameters
     ----------
     image : ndarray of floats
         Input image.
-    min_distance : int
+
+    min_distance : int, optional
         Minimum number of pixels separating peaks in a region of `2 *
         min_distance + 1` (i.e. peaks are separated by at least
         `min_distance`). To find the maximum number of peaks, use
         `min_distance=1`.
-    threshold_abs : float
-        Minimum intensity of peaks.
-    threshold_rel : float
+        Default=10.
+
+    threshold_abs : float, optional
+        Minimum intensity of peaks. Default=0.
+
+    threshold_rel : float, optional
         Minimum intensity of peaks calculated as `max(image) * threshold_rel`.
-    num_peaks : int
+        Default=0.1.
+
+    num_peaks : int, optional
         Maximum number of peaks. When the number of peaks exceeds `num_peaks`,
         return `num_peaks` peaks based on highest peak intensity.
+        Default=np.inf.
 
     Returns
     -------
@@ -107,6 +109,9 @@ def _peak_local_max(image, min_distance=10, threshold_abs=0, threshold_rel=0.1,
 
     Notes
     -----
+    If peaks are flat (i.e. multiple adjacent pixels have identical
+    intensities), the coordinates of all such pixels are returned.
+
     The peak local maximum function returns the coordinates of local peaks
     (maxima) in a image. A maximum filter is used for finding local maxima.
     This operation dilates the original image. After comparison between
@@ -116,8 +121,9 @@ def _peak_local_max(image, min_distance=10, threshold_abs=0, threshold_rel=0.1,
     This code is mostly adapted from scikit image 0.11.3 release.
     Location of file in scikit image: peak_local_max function in
     skimage.feature.peak
+
     """
-    out = np.zeros_like(image, dtype=np.bool)
+    out = np.zeros_like(image, dtype=bool)
 
     if np.all(image == image.flat[0]):
         return out
@@ -125,7 +131,7 @@ def _peak_local_max(image, min_distance=10, threshold_abs=0, threshold_rel=0.1,
     image = image.copy()
 
     size = 2 * min_distance + 1
-    image_max = ndimage.maximum_filter(image, size=size, mode='constant')
+    image_max = maximum_filter(image, size=size, mode='constant')
 
     mask = (image == image_max)
     image *= mask

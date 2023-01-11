@@ -4,24 +4,15 @@ Mixin for cache with joblib
 # Author: Gael Varoquaux, Alexandre Abraham, Philippe Gervais
 # License: simplified BSD
 
-import json
 import warnings
 import os
-import shutil
-from distutils.version import LooseVersion
 
-import nibabel
-import sklearn
-
-from nilearn._utils.compat import Memory
+from joblib import Memory
 
 MEMORY_CLASSES = (Memory, )
 
 import nilearn
-
-from .compat import _basestring
-
-__CACHE_CHECKED = dict()
+from .helpers import stringify_path
 
 
 def _check_memory(memory, verbose=0):
@@ -29,20 +20,22 @@ def _check_memory(memory, verbose=0):
 
     Parameters
     ----------
-    memory: None or instance of joblib.Memory or str
+    memory : None,instance of joblib.Memory, str or pathlib.Path
         Used to cache the masking process.
         If a str is given, it is the path to the caching directory.
 
-    verbose : int, optional (default 0)
-        Verbosity level.
+    verbose : int, optional
+        Verbosity level. Default=0.
 
     Returns
     -------
-    instance of joblib.Memory.
+    memory : instance of joblib.Memory.
+
     """
     if memory is None:
-        memory = Memory(cachedir=None, verbose=verbose)
-    if isinstance(memory, _basestring):
+        memory = Memory(location=None, verbose=verbose)
+    memory = stringify_path(memory)
+    if isinstance(memory, str):
         cache_dir = memory
         if nilearn.EXPAND_PATH_WILDCARDS:
             cache_dir = os.path.expanduser(cache_dir)
@@ -75,84 +68,11 @@ def _check_memory(memory, verbose=0):
                              .format(split_cache_dir[0]))
             raise ValueError(error_msg)
 
-        memory = Memory(cachedir=cache_dir, verbose=verbose)
+        memory = Memory(location=cache_dir, verbose=verbose)
     return memory
 
 
-def _safe_cache(memory, func, **kwargs):
-    """ A wrapper for mem.cache that flushes the cache if the version
-        number of nibabel has changed.
-    """
-    ''' Workaround for
-     https://github.com/scikit-learn-contrib/imbalanced-learn/issues/482
-    joblib throws a spurious warning with newer scikit-learn.
-    This code uses the recommended method first and the deprecated one
-    if that fails, ensuring th warning is not generated in any case.
-    '''
-    try:
-        cachedir = os.path.join(memory.location, 'joblib')
-    except AttributeError:
-        cachedir = memory.cachedir
-    except TypeError:
-        cachedir = None
-
-    if cachedir is None or cachedir in __CACHE_CHECKED:
-        return memory.cache(func, **kwargs)
-
-    version_file = os.path.join(cachedir, 'module_versions.json')
-
-    versions = dict()
-    if os.path.exists(version_file):
-        with open(version_file, 'r') as _version_file:
-            versions = json.load(_version_file)
-
-    modules = (nibabel, )
-    # Keep only the major + minor version numbers
-    my_versions = dict((m.__name__, LooseVersion(m.__version__).version[:2])
-                       for m in modules)
-    commons = set(versions.keys()).intersection(set(my_versions.keys()))
-    collisions = [m for m in commons if versions[m] != my_versions[m]]
-
-    # Flush cache if version collision
-    if len(collisions) > 0:
-        if nilearn.CHECK_CACHE_VERSION:
-            warnings.warn("Incompatible cache in %s: "
-                          "different version of nibabel. Deleting "
-                          "the cache. Put nilearn.CHECK_CACHE_VERSION "
-                          "to false to avoid this behavior."
-                          % cachedir)
-            try:
-                tmp_dir = (os.path.split(cachedir)[:-1]
-                           + ('old_%i' % os.getpid(), ))
-                tmp_dir = os.path.join(*tmp_dir)
-                # We use rename + unlink to be more robust to race
-                # conditions
-                os.rename(cachedir, tmp_dir)
-                shutil.rmtree(tmp_dir)
-            except OSError:
-                # Another process could have removed this dir
-                pass
-
-            try:
-                os.makedirs(cachedir)
-            except OSError:
-                # File exists?
-                pass
-        else:
-            warnings.warn("Incompatible cache in %s: "
-                          "old version of nibabel." % cachedir)
-
-    # Write json files if configuration is different
-    if versions != my_versions:
-        with open(version_file, 'w') as _version_file:
-            json.dump(my_versions, _version_file)
-
-    __CACHE_CHECKED[cachedir] = True
-
-    return memory.cache(func, **kwargs)
-
-
-class _ShelvedFunc(object):
+class _ShelvedFunc:
     """Work around for Python 2, for which pickle fails on instance method"""
     def __init__(self, func):
         self.func = func
@@ -164,7 +84,7 @@ class _ShelvedFunc(object):
 
 def cache(func, memory, func_memory_level=None, memory_level=None,
           shelve=False, **kwargs):
-    """ Return a joblib.Memory object.
+    """Return a joblib.Memory object.
 
     The memory_level determines the level above which the wrapped
     function output is cached. By specifying a numeric value for
@@ -174,35 +94,37 @@ def cache(func, memory, func_memory_level=None, memory_level=None,
 
     Parameters
     ----------
-    func: function
+    func : function
         The function which output is to be cached.
 
-    memory: instance of joblib.Memory or string
+    memory : instance of joblib.Memory, string or pathlib.Path
         Used to cache the function call.
 
-    func_memory_level: int, optional
+    func_memory_level : int, optional
         The memory_level from which caching must be enabled for the wrapped
         function.
 
-    memory_level: int, optional
+    memory_level : int, optional
         The memory_level used to determine if function call must
         be cached or not (if user_memory_level is equal of greater than
-        func_memory_level the function is cached)
+        func_memory_level the function is cached).
 
-    shelve: bool
+    shelve : bool, optional
         Whether to return a joblib MemorizedResult, callable by a .get()
-        method, instead of the return value of func
+        method, instead of the return value of func.
+        Default=False.
 
-    kwargs: keyword arguments
-        The keyword arguments passed to memory.cache
+    kwargs : keyword arguments, optional
+        The keyword arguments passed to memory.cache.
 
     Returns
     -------
-    mem: joblib.MemorizedFunc, wrapped in _ShelvedFunc if shelving
+    mem : joblib.MemorizedFunc, wrapped in _ShelvedFunc if shelving
         Object that wraps the function func to cache its further call.
         This object may be a no-op, if the requested level is lower
         than the value given to _cache()).
         For consistency, a callable object is always returned.
+
     """
     verbose = kwargs.get('verbose', 0)
 
@@ -217,13 +139,14 @@ def cache(func, memory, func_memory_level=None, memory_level=None,
 
     if memory is not None and (func_memory_level is None or
                                memory_level >= func_memory_level):
-        if isinstance(memory, _basestring):
-            memory = Memory(cachedir=memory, verbose=verbose)
+        memory = stringify_path(memory)
+        if isinstance(memory, str):
+            memory = Memory(location=memory, verbose=verbose)
         if not isinstance(memory, MEMORY_CLASSES):
             raise TypeError("'memory' argument must be a string or a "
                             "joblib.Memory object. "
                             "%s %s was given." % (memory, type(memory)))
-        if (memory.cachedir is None and memory_level is not None
+        if (memory.location is None and memory_level is not None
                 and memory_level > 1):
             warnings.warn("Caching has been enabled (memory_level = %d) "
                           "but no Memory object or path has been provided"
@@ -232,23 +155,26 @@ def cache(func, memory, func_memory_level=None, memory_level=None,
                           (memory_level, func.__name__),
                           stacklevel=2)
     else:
-        memory = Memory(cachedir=None, verbose=verbose)
-    cached_func = _safe_cache(memory, func, **kwargs)
+        memory = Memory(location=None, verbose=verbose)
+    cached_func = memory.cache(func, **kwargs)
     if shelve:
         cached_func = _ShelvedFunc(cached_func)
     return cached_func
 
 
-class CacheMixin(object):
+class CacheMixin:
     """Mixin to add caching to a class.
 
     This class is a thin layer on top of joblib.Memory, that mainly adds a
     "caching level", similar to a "log level".
 
+    Notes
+    -----
     Usage: to cache the results of a method, wrap it in self._cache()
     defined by this class. Caching is performed only if the user-specified
     cache level (self._memory_level) is greater than the value given as a
     parameter to self._cache(). See _cache() documentation for details.
+
     """
     def _cache(self, func, func_memory_level=1, shelve=False, **kwargs):
         """Return a joblib.Memory object.
@@ -261,24 +187,25 @@ class CacheMixin(object):
 
         Parameters
         ----------
-        func: function
+        func : function
             The function the output of which is to be cached.
 
-        memory_level: int
+        func_memory_level : int, optional
             The memory_level from which caching must be enabled for the wrapped
-            function.
+            function. Default=1.
 
-        shelve: bool
+        shelve : bool, optional
             Whether to return a joblib MemorizedResult, callable by a .get()
-            method, instead of the return value of func
+            method, instead of the return value of func. Default=False.
 
         Returns
         -------
-        mem: joblib.MemorizedFunc, wrapped in _ShelvedFunc if shelving
+        mem : joblib.MemorizedFunc, wrapped in _ShelvedFunc if shelving
             Object that wraps the function func to cache its further call.
             This object may be a no-op, if the requested level is lower
             than the value given to _cache()).
             For consistency, a callable object is always returned.
+
         """
         verbose = getattr(self, 'verbose', 0)
 
@@ -287,12 +214,12 @@ class CacheMixin(object):
         if not hasattr(self, "memory_level"):
             self.memory_level = 0
         if not hasattr(self, "memory"):
-            self.memory = Memory(cachedir=None, verbose=verbose)
+            self.memory = Memory(location=None, verbose=verbose)
         self.memory = _check_memory(self.memory, verbose=verbose)
 
         # If cache level is 0 but a memory object has been provided, set
         # memory_level to 1 with a warning.
-        if self.memory_level == 0 and self.memory.cachedir is not None:
+        if self.memory_level == 0 and self.memory.location is not None:
             warnings.warn("memory_level is currently set to 0 but "
                           "a Memory object has been provided. "
                           "Setting memory_level to 1.")

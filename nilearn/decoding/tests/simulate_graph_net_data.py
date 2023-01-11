@@ -3,7 +3,8 @@ Simple code to simulate data
 """
 
 import numpy as np
-from scipy import linalg, ndimage
+from scipy import linalg
+from scipy.ndimage import gaussian_filter
 from sklearn.utils import check_random_state
 
 
@@ -21,15 +22,15 @@ def create_graph_net_simulation_data(
         point = (generator.randint(0, size), generator.randint(0, size),
                  generator.randint(0, size))
         w[point] = 1.0
-    mask = np.ones((size, size, size), dtype=np.bool)
-    w = ndimage.gaussian_filter(w, sigma=1)
+    mask = np.ones((size, size, size), dtype=bool)
+    w = gaussian_filter(w, sigma=1)
     w = w[mask]
 
     # Generate smooth background noise
     XX = generator.randn(n_samples, size, size, size)
     noise = []
     for i in range(n_samples):
-        Xi = ndimage.filters.gaussian_filter(XX[i, :, :, :], smooth_X)
+        Xi = gaussian_filter(XX[i, :, :, :], smooth_X)
         Xi = Xi[mask]
         noise.append(Xi)
     noise = np.array(noise)

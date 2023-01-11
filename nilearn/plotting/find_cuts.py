@@ -8,8 +8,11 @@ Tools to find activations and cut on maps
 import warnings
 import numbers
 import numpy as np
-from scipy import ndimage
-
+from scipy.ndimage import (
+    center_of_mass,
+    find_objects,
+    label,
+)
 # Local imports
 from ..image import new_img_like, reorder_img, iter_img
 from ..image.resampling import get_mask_bounds, coord_transform
@@ -19,6 +22,7 @@ from .._utils.extmath import fast_abs_percentile
 from .._utils.numpy_conversions import as_ndarray
 from .._utils import check_niimg_3d, check_niimg_4d
 from .._utils.niimg import _safe_get_data
+from nilearn.image import get_data
 
 ################################################################################
 # Functions for automatic choice of cuts coordinates
@@ -30,25 +34,30 @@ DEFAULT_CUT_COORDS = (0., 0., 0.)
 def find_xyz_cut_coords(img, mask_img=None, activation_threshold=None):
     """ Find the center of the largest activation connected component.
 
-        Parameters
-        -----------
-        img : 3D Nifti1Image
-            The brain map.
-        mask_img : 3D Nifti1Image, optional
-            An optional brain mask, provided mask_img should not be empty.
-        activation_threshold : float, optional
-            The lower threshold to the positive activation. If None, the
-            activation threshold is computed using the 80% percentile of
-            the absolute value of the map.
+    Parameters
+    -----------
+    img : 3D Nifti1Image
+        The brain map.
 
-        Returns
-        -------
-        x : float
-            the x world coordinate.
-        y : float
-            the y world coordinate.
-        z : float
-            the z world coordinate.
+    mask_img : 3D Nifti1Image, optional
+        An optional brain mask, provided mask_img should not be empty.
+
+    activation_threshold : float, optional
+        The lower threshold to the positive activation. If None, the
+        activation threshold is computed using the 80% percentile of
+        the absolute value of the map.
+
+    Returns
+    -------
+    x : float
+        The x world coordinate.
+
+    y : float
+        The y world coordinate.
+
+    z : float
+        The z world coordinate.
+
     """
     # if a pseudo-4D image or several images were passed (cf. #922),
     # we reduce to a single 3D image to find the coordinates
@@ -95,20 +104,30 @@ def find_xyz_cut_coords(img, mask_img=None, activation_threshold=None):
         # check against empty mask
         if mask.sum() == 0.:
             warnings.warn(
-                "Provided mask is empty. Returning center of mass instead.")
-            cut_coords = ndimage.center_of_mass(np.abs(my_map)) + offset
+                "Could not determine cut coords: "
+                "Provided mask is empty. "
+                "Returning center of mass instead.")
+            cut_coords = center_of_mass(np.abs(my_map)) + offset
             x_map, y_map, z_map = cut_coords
             return np.asarray(coord_transform(x_map, y_map, z_map,
                                               img.affine)).tolist()
-        slice_x, slice_y, slice_z = ndimage.find_objects(mask)[0]
+        slice_x, slice_y, slice_z = find_objects(mask.astype(int))[0]
         my_map = my_map[slice_x, slice_y, slice_z]
         mask = mask[slice_x, slice_y, slice_z]
         my_map *= mask
         offset += [slice_x.start, slice_y.start, slice_z.start]
-
     # Testing min and max is faster than np.all(my_map == 0)
-    if (my_map.max() == 0) and (my_map.min() == 0):
-        return .5 * np.array(data.shape)
+    if my_map.max() == my_map.min() == 0:
+        warnings.warn(
+            "Could not determine cut coords: "
+            "All values were masked. "
+            "Returning center of mass of unmasked data instead.")
+        # Call center of mass on initial data since my_map is zero.
+        # Therefore, do not add offset to cut_coords.
+        cut_coords = center_of_mass(np.abs(data))
+        x_map, y_map, z_map = cut_coords
+        return np.asarray(coord_transform(x_map, y_map, z_map,
+                                          img.affine)).tolist()
     if activation_threshold is None:
         activation_threshold = fast_abs_percentile(my_map[my_map != 0].ravel(),
                                                    80)
@@ -121,21 +140,29 @@ def find_xyz_cut_coords(img, mask_img=None, activation_threshold=None):
     mask = np.abs(my_map) > (activation_threshold - eps)
     # mask may be zero everywhere in rare cases
     if mask.max() == 0:
-        return .5 * np.array(data.shape)
+        warnings.warn(
+            "Could not determine cut coords: "
+            "All voxels were masked by the thresholding. "
+            "Returning the center of mass instead.")
+        cut_coords = center_of_mass(np.abs(my_map)) + offset
+        x_map, y_map, z_map = cut_coords
+        return np.asarray(coord_transform(x_map, y_map, z_map,
+                                          img.affine)).tolist()
+
     mask = largest_connected_component(mask)
-    slice_x, slice_y, slice_z = ndimage.find_objects(mask)[0]
+    slice_x, slice_y, slice_z = find_objects(mask.astype(int))[0]
     my_map = my_map[slice_x, slice_y, slice_z]
     mask = mask[slice_x, slice_y, slice_z]
     my_map *= mask
     offset += [slice_x.start, slice_y.start, slice_z.start]
 
     # For the second threshold, we use a mean, as it is much faster,
-    # althought it is less robust
+    # although it is less robust
     second_threshold = np.abs(np.mean(my_map[mask]))
     second_mask = (np.abs(my_map) > second_threshold)
     if second_mask.sum() > 50:
         my_map *= largest_connected_component(second_mask)
-    cut_coords = ndimage.center_of_mass(np.abs(my_map))
+    cut_coords = center_of_mass(np.abs(my_map))
     x_map, y_map, z_map = cut_coords + offset
 
     # Return as a list of scalars
@@ -144,14 +171,13 @@ def find_xyz_cut_coords(img, mask_img=None, activation_threshold=None):
 
 
 def _get_auto_mask_bounds(img):
-    """ Compute the bounds of the data with an automaticaly computed mask
+    """ Compute the bounds of the data with an automatically computed mask
     """
     data = _safe_get_data(img)
     affine = img.affine
     if hasattr(data, 'mask'):
         # Masked array
         mask = np.logical_not(data.mask)
-        data = np.asarray(data)
     else:
         # The mask will be anything that is fairly different
         # from the values in the corners
@@ -172,19 +198,20 @@ def _transform_cut_coords(cut_coords, direction, affine):
 
     Parameters
     ----------
-    cut_coords: 1D array of length n_cuts
+    cut_coords : 1D array of length n_cuts
         The coordinates to be transformed.
 
-    direction: string, optional (default "z")
-        sectional direction; possible values are "x", "y", or "z"
+    direction : string
+        Sectional direction; possible values are "x", "y", or "z".
 
-    affine: 2D array of shape (4, 4)
+    affine : 2D array of shape (4, 4)
         The affine for the image.
 
     Returns
     -------
-    cut_coords: 1D array of length n_cuts
+    cut_coords : 1D array of length n_cuts
        The original cut_coords transformed image space.
+
     """
     # make kwargs
     axis = 'xyz'.index(direction)
@@ -205,21 +232,26 @@ def find_cut_slices(img, direction='z', n_cuts=7, spacing='auto'):
 
     Parameters
     ----------
-    img: 3D Niimg-like object
-        See http://nilearn.github.io/manipulating_images/input_output.html
-        the brain map
-    direction: string, optional (default "z")
-        sectional direction; possible values are "x", "y", or "z"
-    n_cuts: int, optional (default 7)
-        number of cuts in the plot
-    spacing: 'auto' or int, optional (default 'auto')
-        minimum spacing between cuts (in voxels, not milimeters)
-        if 'auto', the spacing is .5 / n_cuts * img_length
+    img : 3D Niimg-like object
+        See :ref:`extracting_data`.
+        The brain map.
+
+    direction : string, optional
+        Sectional direction; possible values are "x", "y", or "z".
+        Default='z'.
+
+    n_cuts : int, optional
+        Number of cuts in the plot. Default=7.
+
+    spacing : 'auto' or int, optional
+        Minimum spacing between cuts (in voxels, not millimeters)
+        if 'auto', the spacing is .5 / n_cuts * img_length.
+        Default='auto'.
 
     Returns
     -------
-    cut_coords: 1D array of length n_cuts
-        the computed cut_coords
+    cut_coords : 1D array of length n_cuts
+        The computed cut_coords.
 
     Notes
     -----
@@ -228,13 +260,13 @@ def find_cut_slices(img, direction='z', n_cuts=7, spacing='auto'):
     large and all the activated regions are covered, cuts with a spacing
     less than 'spacing' will be returned.
 
-    Warning
-    -------
+    Warnings
+    --------
     If a non-diagonal img is given. This function automatically reorders
     img to get it back to diagonal. This is to avoid finding same cuts in
     the slices.
-    """
 
+    """
     # misc
     if not direction in 'xyz':
         raise ValueError(
@@ -251,6 +283,7 @@ def find_cut_slices(img, direction='z', n_cuts=7, spacing='auto'):
         # affine and rotation.
         img = reorder_img(img, resample='nearest')
         affine = img.affine
+    # note: orig_data is a copy of img._data_cache thanks to np.abs
     orig_data = np.abs(_safe_get_data(img))
     this_shape = orig_data.shape[axis]
 
@@ -271,7 +304,7 @@ def find_cut_slices(img, direction='z', n_cuts=7, spacing='auto'):
     # first convert it to float.
     data = orig_data.copy()
     if data.dtype.kind in ('i', 'u'):
-        data = data.astype(np.float)
+        data = data.astype(np.float64)
 
     data = _smooth_array(data, affine, fwhm='fast')
 
@@ -352,37 +385,39 @@ def find_cut_slices(img, direction='z', n_cuts=7, spacing='auto'):
 
 def find_parcellation_cut_coords(labels_img, background_label=0, return_label_names=False,
                                  label_hemisphere='left'):
-    """ Return coordinates of center of mass of 3D parcellation atlas
+    """Return coordinates of center of mass of 3D parcellation atlas.
 
     Parameters
     ----------
-    labels_img: 3D Nifti1Image
+    labels_img : 3D Nifti1Image
         A brain parcellation atlas with specific mask labels for each
         parcellated region.
 
-    background_label: int, optional (default 0)
+    background_label : int, optional
         Label value used in labels_img to represent background.
+        Default=0.
 
-    return_label_names: bool, optional (default False)
-        Returns list of labels
+    return_label_names : bool, optional
+        Returns list of labels. Default=False.
 
-    label_hemisphere: 'left' or 'right', optional (default 'left')
+    label_hemisphere : 'left' or 'right', optional
         Choice of hemisphere to compute label center coords for.
         Applies only in cases where atlas labels are lateralized.
-        Eg. Yeo or Harvard Oxford atlas.
+        Eg. Yeo or Harvard Oxford atlas. Default='left'.
 
     Returns
     -------
-    coords: numpy.ndarray of shape (n_labels, 3)
+    coords : numpy.ndarray of shape (n_labels, 3)
         Label regions cut coordinates in image space (mm).
 
-    labels_list: list, optional
+    labels_list : list, optional
         Label region. Returned only when return_label_names is True.
 
     See Also
     --------
     nilearn.plotting.find_probabilistic_atlas_cut_coords : For coordinates
         extraction on probabilistic atlases (4D) (Eg. MSDL atlas)
+
     """
     # check label_hemisphere input
     if label_hemisphere not in ['left', 'right']:
@@ -390,11 +425,12 @@ def find_parcellation_cut_coords(labels_img, background_label=0, return_label_na
                          "of these 'left' or 'right'.".format(label_hemisphere))
     # Grab data and affine
     labels_img = reorder_img(check_niimg_3d(labels_img))
-    labels_data = labels_img.get_data()
+    labels_data = get_data(labels_img)
     labels_affine = labels_img.affine
 
     # Grab number of unique values in 3d image
-    unique_labels = set(np.unique(labels_data)) - set([background_label])
+    unique_labels = np.unique(labels_data)
+    unique_labels = np.delete(unique_labels, background_label)
 
     # Loop over parcellation labels, grab center of mass and dump into coords
     # list
@@ -406,26 +442,26 @@ def find_parcellation_cut_coords(labels_img, background_label=0, return_label_na
 
         # Grab hemispheres separately
         x, y, z = coord_transform(0, 0, 0, np.linalg.inv(labels_affine))
-        left_hemi = labels_img.get_data().copy() == cur_label
-        right_hemi = labels_img.get_data().copy() == cur_label
+        left_hemi = get_data(labels_img).copy() == cur_label
+        right_hemi = get_data(labels_img).copy() == cur_label
         left_hemi[int(x):] = 0
         right_hemi[:int(x)] = 0
 
         # Two connected component in both hemispheres
         if not np.all(left_hemi == False) or np.all(right_hemi == False):
-            if label_hemisphere is 'left':
+            if label_hemisphere == 'left':
                 cur_img = left_hemi.astype(int)
-            elif label_hemisphere is 'right':
+            elif label_hemisphere == 'right':
                 cur_img = right_hemi.astype(int)
 
         # Take the largest connected component
-        labels, label_nb = ndimage.label(cur_img)
+        labels, label_nb = label(cur_img)
         label_count = np.bincount(labels.ravel().astype(int))
         label_count[0] = 0
         component = labels == label_count.argmax()
 
         # Get parcellation center of mass
-        x, y, z = ndimage.center_of_mass(component)
+        x, y, z = center_of_mass(component)
 
         # Dump label region and coordinates into a dictionary
         label_list.append(cur_label)
@@ -441,17 +477,17 @@ def find_parcellation_cut_coords(labels_img, background_label=0, return_label_na
 
 
 def find_probabilistic_atlas_cut_coords(maps_img):
-    """ Return coordinates of center probabilistic atlas 4D image
+    """Return coordinates of center probabilistic atlas 4D image.
 
     Parameters
     ----------
-    label_img: 4D Nifti1Image
+    maps_img : 4D Nifti1Image
         A probabilistic brain atlas with probabilistic masks in the fourth
         dimension.
 
     Returns
     -------
-    coords: numpy.ndarray of shape (n_maps, 3)
+    coords : numpy.ndarray of shape (n_maps, 3)
         Label regions cut coordinates in image space (mm).
 
     See Also
@@ -459,6 +495,7 @@ def find_probabilistic_atlas_cut_coords(maps_img):
     nilearn.plotting.find_parcellation_cut_coords : For coordinates
         extraction on parcellations denoted with labels (3D)
         (Eg. Harvard Oxford atlas)
+
     """
     maps_img = check_niimg_4d(maps_img)
     maps_imgs = iter_img(maps_img)

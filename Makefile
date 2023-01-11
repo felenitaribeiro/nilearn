@@ -1,4 +1,4 @@
-# simple makefile to simplify repetetive build env management tasks under posix
+# simple makefile to simplify repetitive build env management tasks under posix
 
 # caution: testing won't work on windows, see README
 
@@ -33,6 +33,7 @@ test-code:
 
 test-doc:
 	pytest --doctest-glob='*.rst' `find doc/ -name '*.rst'`
+	pytest doc/_additional_doctests.txt
 
 
 test-coverage:
@@ -63,4 +64,3 @@ doc:
 .PHONY : pdf
 pdf:
 	make -C doc pdf
-

@@ -1,56 +1,89 @@
 .. -*- mode: rst -*-
 
-People
-------
+.. include:: changes/names.rst
 
-This work is made available by a community of people, amongst which
-the `INRIA Parietal Project Team <https://team.inria.fr/parietal/>`_
-and the `scikit-learn <http://scikit-learn.org/>`_ folks, in
-particular:
+====
+Team
+====
 
-* Alexandre Abraham
-* `Alexandre Gramfort <http://alexandre.gramfort.net>`_
-* Vincent Michel
-* Bertrand Thirion
-* `Fabian Pedregosa <http://fa.bianp.net/>`_
-* `Gael Varoquaux <http://gael-varoquaux.info/>`_
-* Philippe Gervais
-* Michael Eickenberg
-* Danilo Bzdok
-* Loïc Estève
-* Kamalakar Reddy Daddy
-* Elvis Dohmatob
-* Alexandre Abadie
-* Andres Hoyos Idrobo
-* Salma Bougacha
-* Mehdi Rahim
-* Sylvain Lanuzel
-* `Kshitij Chawla <https://github.com/kchawla-pi>`_
+This work is made available by a community of people, which
+originated from
+the :inria:`INRIA MIND Project Team <mind>` and :sklearn:`scikit-learn <>`
+but grew much further.
 
-Many of also contributed outside of Parietal, notably:
+An up-to-date list of contributors can be seen in on
+:nilearn-gh:`GitHub <graphs/contributors>`.
 
-* `Chris Filo Gorgolewski <http://multiplecomparisons.blogspot.fr/>`_
-* `Ben Cipollini <http://cseweb.ucsd.edu/~bcipolli/>`_
-* Julia Huntenburg
-* Martin Perez-Guevara
+Additional credit goes to `Michael Hanke`_ and `Yaroslav Halchenko`_ for data and packaging.
 
-Thanks to M. Hanke and Y. Halchenko for data and packaging.
+.. _core_devs:
+
+Core developers
+...............
+
+The nilearn core developers are:
+
+* `Alexis Thual`_
+* `Bertrand Thirion`_
+* `Elizabeth DuPre`_
+* `Hao-Ting Wang`_
+* `Jerome Dockes`_
+* `Nicolas Gensollen`_
+* `Taylor Salo`_
+* `Yasmin Mzayek`_
+
+Other contributors
+..................
+
+Some other past or present contributors are:
+
+* `Alexandre Gramfort`_
+* `Binh Nguyen`_
+* `Gael Varoquaux`_
+* `Julia Huntenburg`_
+* `Thomas Bazeille`_
+* `Alexandre Abadie`_
+* `Alexandre Abraham`_
+* `Andrés Hoyos Idrobo`_
+* `Ben Cipollini`_
+* `Chris Gorgolewski`_
+* `Danilo Bzdok`_
+* `Elvis Dohmatob`_
+* `Fabian Pedregosa`_
+* `Jean Kossaifi`_
+* `Jerome-Alexis Chevalier`_
+* `Kamalakar Reddy Daddy`_
+* `Kshitij Chawla`_
+* `Loic Estève`_
+* `Martin Perez-Guevara`_
+* `Michael Eickenberg`_
+* `Philippe Gervais`_
+* `Pierre Bellec`_
+* `Salma Bougacha`_
+* `Vincent Michel`_
+* `Virgile Fritsch`_
 
 Funding
-........
+.......
 
-Alexandre Abraham, Gael Varoquaux, Kamalakar Reddy Daddy, Loïc Estève,
-Mehdi Rahim, Philippe Gervais where payed by the `NiConnect
-<https://team.inria.fr/parietal/18-2/spatial_patterns/niconnect>`_
+`Alexandre Abraham`_, `Gael Varoquaux`_, `Kamalakar Reddy Daddy`_, `Loic Estève`_,
+`Mehdi Rahim`_, `Philippe Gervais`_ were paid by the
+:inria:`NiConnect <parietal/research/spatial_patterns/niconnect/>`.
 project, funded by the French `Investissement d'Avenir
 <http://www.gouvernement.fr/investissements-d-avenir-cgi>`_.
 
-NiLearn is also supported by `DigiCosme <https://digicosme.lri.fr>`_ |digicomse logo|
+`Kshitij Chawla`_ was paid by `INRIA <https://www.inria.fr/en>`_.
+
+`Yasmin Mzayek`_ is paid by the `Human Brain Project <https://www.humanbrainproject.eu/en/>`_
+|HBP logo|. Previously `Nicolas Gensollen`_ was funded by HBP.
+
+NiLearn is also supported by `DigiCosme <https://digicosme.lri.fr>`_
+|digicosme logo| and `DataIA <https://dataia.eu/en>`_ |dataia_logo|.
 
 .. _citing:
 
 Citing nilearn
-------------------------
+--------------
 
 There is no paper published yet about nilearn. We are waiting for the
 package to mature a bit. However, the patterns underlying the package
@@ -62,18 +95,28 @@ We suggest that you read and cite the paper. Thank you.
 
 
 Citing scikit-learn
-------------------------
+-------------------
 
-A huge amount of work goes in the scikit-learn. Researchers that invest
-their time in developing and maintaining the package deserve recognition
-with citations. In addition, the Parietal team needs the citations to the
-paper in order to justify paying a software engineer on the project. To
-guarantee the future of the toolkit, if you use it, please cite it.
+A huge amount of work goes into :sklearn:`scikit-learn <>`,
+upon which nilearn relies heavily.
+Researchers who invest their time in developing and maintaining the package
+deserve recognition with citations.
+In addition, the :inria:`INRIA MIND Project Team <mind>` needs citations
+to the paper in order to justify paying a software engineer on the project.
+To guarantee the future of the toolkit, if you use it, please cite it.
 
-See the scikit-learn documentation on `how to cite
-<http://scikit-learn.org/stable/about.html#citing-scikit-learn>`_.
+See the scikit-learn documentation on
+:sklearn:`how to cite <about.html#citing-scikit-learn>`.
 
 
-.. |digicomse logo| image:: logos/digi-saclay-logo-small.png
+.. |digicosme logo| image:: logos/digi-saclay-logo-small.png
     :height: 25
     :alt: DigiComse Logo
+
+.. |dataia_logo| image:: logos/dataia.png
+    :height: 25
+    :alt: DataIA Logo
+
+.. |HBP logo| image:: logos/hbp-logo.png
+    :height: 25
+    :alt: HBP Logo

@@ -5,7 +5,9 @@ Searchlight analysis of face vs house recognition
 Searchlight analysis requires fitting a classifier a large amount of
 times. As a result, it is an intrinsically slow method. In order to speed
 up computing, in this example, Searchlight is run only on one slice on
-the fMRI (see the generated figures).
+the :term:`fMRI` (see the generated figures).
+
+.. include:: ../../../examples/masker_note.rst
 
 """
 
@@ -14,7 +16,7 @@ the fMRI (see the generated figures).
 # -------------------
 import pandas as pd
 from nilearn import datasets
-from nilearn.image import new_img_like, load_img
+from nilearn.image import new_img_like, load_img, get_data
 
 # We fetch 2nd subject from haxby datasets (which is default)
 haxby_dataset = datasets.fetch_haxby()
@@ -49,7 +51,7 @@ import numpy as np
 mask_img = load_img(haxby_dataset.mask)
 
 # .astype() makes a copy.
-process_mask = mask_img.get_data().astype(np.int)
+process_mask = get_data(mask_img).astype(int)
 picked_slice = 29
 process_mask[..., (picked_slice + 1):] = 0
 process_mask[..., :picked_slice] = 0
@@ -84,10 +86,10 @@ searchlight.fit(fmri_img, y)
 #########################################################################
 # F-scores computation
 # ----------------------
-from nilearn.input_data import NiftiMasker
+from nilearn.maskers import NiftiMasker
 
 # For decoding, standardizing is often very important
-nifti_masker = NiftiMasker(mask_img=mask_img, sessions=session,
+nifti_masker = NiftiMasker(mask_img=mask_img, runs=session,
                            standardize=True, memory='nilearn_cache',
                            memory_level=1)
 fmri_masked = nifti_masker.fit_transform(fmri_img)
@@ -96,7 +98,7 @@ from sklearn.feature_selection import f_classif
 f_values, p_values = f_classif(fmri_masked, y)
 p_values = -np.log10(p_values)
 p_values[p_values > 10] = 10
-p_unmasked = nifti_masker.inverse_transform(p_values).get_data()
+p_unmasked = get_data(nifti_masker.inverse_transform(p_values))
 
 #########################################################################
 # Visualization
