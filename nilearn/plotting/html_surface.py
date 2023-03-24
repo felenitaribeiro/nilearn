@@ -5,6 +5,8 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
+from matplotlib import cm as mlp_cm
+from matplotlib.colors import ListedColormap
 from nilearn._utils.niimg_conversions import check_niimg_3d
 from nilearn._utils import fill_doc
 from nilearn import surface
@@ -32,7 +34,12 @@ def _get_vertexcolor(surf_map, cmap, norm,
         bg_map = surface.load_surf_data(bg_map)
         bg_vmin, bg_vmax = np.min(bg_map), np.max(bg_map)
     bg_norm = mpl.colors.Normalize(vmin=bg_vmin, vmax=bg_vmax)
-    bg_color = plt.get_cmap('Greys')(bg_norm(bg_map))
+    # Background color for binary representation
+    color_palette = mlp_cm.get_cmap('tab20c')
+    newcolor = color_palette(np.linspace(0,1,20))
+    newcolor = newcolor[16:18]
+    newcmap = ListedColormap(newcolor, name='Background')
+    bg_color = plt.get_cmap(newcmap)(bg_norm(bg_map)) # Change newcmap for 'Greys' for continuous background values 
     vertexcolor[np.abs(surf_map) < absolute_threshold] = bg_color[
         np.abs(surf_map) < absolute_threshold]
     return to_color_strings(vertexcolor)
@@ -123,7 +130,7 @@ def _fill_html_template(info, embed_js=True):
     as_json = json.dumps(info)
     as_html = get_html_template('surface_plot_template.html').safe_substitute(
         {'INSERT_STAT_MAP_JSON_HERE': as_json,
-         'INSERT_PAGE_TITLE_HERE': info["title"] or "Surface plot"})
+         'INSERT_PAGE_TITLE_HERE': "Surface plot"})
     as_html = add_js_lib(as_html, embed_js=embed_js)
     return SurfaceView(as_html)
 
